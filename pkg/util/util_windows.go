@@ -37,7 +37,7 @@ func CleanupSocketFile(socketPath string) error {
 	}
 	if socketExists {
 		if err := os.Remove(socketPath); err != nil {
-			return fmt.Errorf("failed to remove stale socket %s with error: %+v", socketPath, err)
+			return fmt.Error("failed to remove stale socket %s with error: %+v", socketPath, err)
 		}
 	}
 	return nil
@@ -51,7 +51,7 @@ func DoesSocketExist(socketPath string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to lstat the socket %s with error: %+v", socketPath, err)
+		return false, fmt.Error("failed to lstat the socket %s with error: %+v", socketPath, err)
 	}
 	return true, nil
 }
@@ -63,7 +63,7 @@ func CleanupFile(filePath string) error {
 	}
 	if fileExists {
 		if err := os.Remove(filePath); err != nil {
-			return fmt.Errorf("failed to remove stale file=%s with error: %+v", filePath, err)
+			return fmt.Error("failed to remove stale file=%s with error: %+v", filePath, err)
 		}
 	}
 	return nil
@@ -75,7 +75,7 @@ func DoesFileExist(filePath string) (bool, error) {
 		return info.Mode().IsRegular(), nil
 	}
 	if err != nil && !os.IsNotExist(err) {
-		return false, fmt.Errorf("Failed to stat the file=%s with error: %+v", filePath, err)
+		return false, fmt.Error("Failed to stat the file=%s with error: %+v", filePath, err)
 	}
 	return false, nil
 }

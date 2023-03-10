@@ -64,6 +64,8 @@ There are two UNIX domain sockets used by the node-driver-registrar:
 
 * `--enable-pprof`: Enable pprof profiling on the TCP network address specified by `--http-endpoint`.
 
+* `--logging-format`: Enable format logging for node driver registrar. default to json
+
 ### Required permissions
 
 The node-driver-registrar does not interact with the Kubernetes API, so no RBAC

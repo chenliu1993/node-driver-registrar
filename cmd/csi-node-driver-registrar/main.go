@@ -32,6 +32,8 @@ import (
 
 	"github.com/kubernetes-csi/csi-lib-utils/connection"
 	csirpc "github.com/kubernetes-csi/csi-lib-utils/rpc"
+	logsapi "k8s.io/component-base/logs/api/v1"
+	json "k8s.io/component-base/logs/json"
 	registerapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
 )
 
@@ -71,6 +73,7 @@ var (
 	showVersion             = flag.Bool("version", false, "Show version.")
 	mode                    = flag.String("mode", ModeRegistration, `The running mode of node-driver-registrar. "registration" runs node-driver-registrar as a long running process. "kubelet-registration-probe" runs as a health check and returns a status code of 0 if the driver was registered successfully, in the probe definition make sure that the value of --kubelet-registration-path is the same as in the container.`)
 	enableProfile           = flag.Bool("enable-pprof", false, "enable pprof profiling")
+	loggingFormat           = flag.String("logging-format", "json", "Sets the log format")
 
 	// Set during compilation time
 	version = "unknown"
@@ -99,7 +102,7 @@ func newRegistrationServer(driverName string, endpoint string, versions []string
 
 // GetInfo is the RPC invoked by plugin watcher
 func (e registrationServer) GetInfo(ctx context.Context, req *registerapi.InfoRequest) (*registerapi.PluginInfo, error) {
-	klog.Infof("Received GetInfo call: %+v", req)
+	klog.InfoS("Received GetInfo call: %+v", req)
 
 	// on successful registration, create the registration probe file
 	err := util.TouchFile(registrationProbePath)
@@ -118,9 +121,9 @@ func (e registrationServer) GetInfo(ctx context.Context, req *registerapi.InfoRe
 }
 
 func (e registrationServer) NotifyRegistrationStatus(ctx context.Context, status *registerapi.RegistrationStatus) (*registerapi.RegistrationStatusResponse, error) {
-	klog.Infof("Received NotifyRegistrationStatus call: %+v", status)
+	klog.InfoS("Received NotifyRegistrationStatus call: %+v", status)
 	if !status.PluginRegistered {
-		klog.Errorf("Registration process failed with error: %+v, restarting registration container.", status.Error)
+		klog.Error("Registration process failed with error: %+v, restarting registration container.", status.Error)
 		os.Exit(1)
 	}
 
@@ -135,6 +138,16 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Set("logtostderr", "true")
 	flag.Parse()
+
+	if *loggingFormat == "json" {
+		logger, _ := json.Factory{}.Create(logsapi.LoggingConfiguration{
+			Format: *loggingFormat,
+			// this level is high enough to enable all log messages.
+			Verbosity: logsapi.VerbosityLevel(100),
+		})
+		klog.SetLogger(logger)
+		defer klog.ClearLogger()
+	}
 
 	if *showVersion {
 		fmt.Println(os.Args[0], version)
@@ -160,12 +173,12 @@ func main() {
 			klog.Fatalf("Kubelet plugin registration hasn't succeeded yet, file=%s doesn't exist.", registrationProbePath)
 			os.Exit(1)
 		}
-		klog.Infof("Kubelet plugin registration succeeded.")
+		klog.InfoS("Kubelet plugin registration succeeded.")
 		os.Exit(0)
 	}
 
-	klog.Infof("Version: %s", version)
-	klog.Infof("Running node-driver-registrar in mode=%s", *mode)
+	klog.InfoS("Version: %s", version)
+	klog.InfoS("Running node-driver-registrar in mode=%s", *mode)
 
 	if *healthzPort > 0 && *httpEndpoint != "" {
 		klog.Error("only one of `--health-port` and `--http-endpoint` can be set.")
@@ -189,24 +202,24 @@ func main() {
 	// resolved, if plugin does not support PUBLISH_UNPUBLISH_VOLUME, then we
 	// can skip adding mapping to "csi.volume.kubernetes.io/nodeid" annotation.
 
-	klog.V(1).Infof("Attempting to open a gRPC connection with: %q", *csiAddress)
+	klog.V(1).InfoS("Attempting to open a gRPC connection with: %q", *csiAddress)
 	csiConn, err := connection.Connect(*csiAddress, cmm)
 	if err != nil {
-		klog.Errorf("error connecting to CSI driver: %v", err)
+		klog.Error("error connecting to CSI driver: %v", err)
 		os.Exit(1)
 	}
 
-	klog.V(1).Infof("Calling CSI driver to discover driver name")
+	klog.V(1).InfoS("Calling CSI driver to discover driver name")
 	ctx, cancel := context.WithTimeout(context.Background(), *operationTimeout)
 	defer cancel()
 
 	csiDriverName, err := csirpc.GetDriverName(ctx, csiConn)
 	if err != nil {
-		klog.Errorf("error retreiving CSI driver name: %v", err)
+		klog.Error("error retreiving CSI driver name: %v", err)
 		os.Exit(1)
 	}
 
-	klog.V(2).Infof("CSI driver name: %q", csiDriverName)
+	klog.V(2).InfoS("CSI driver name: %q", csiDriverName)
 	cmm.SetDriverName(csiDriverName)
 
 	// Run forever

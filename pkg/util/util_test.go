@@ -91,7 +91,7 @@ func TestSocketPathSimple(t *testing.T) {
 
 	_, err = net.Listen("unix", socketPath)
 	if err != nil {
-		klog.Errorf("failed to listen on socket: %s with error: %+v", socketPath, err)
+		klog.Error("failed to listen on socket: %s with error: %+v", socketPath, err)
 		os.Exit(1)
 	}
 

@@ -40,7 +40,7 @@ func nodeRegister(csiDriverName, httpEndpoint string) {
 	registrar := newRegistrationServer(csiDriverName, *kubeletRegistrationPath, supportedVersions)
 	socketPath := buildSocketPath(csiDriverName)
 	if err := util.CleanupSocketFile(socketPath); err != nil {
-		klog.Errorf("%+v", err)
+		klog.Error("%+v", err)
 		os.Exit(1)
 	}
 
@@ -50,16 +50,16 @@ func nodeRegister(csiDriverName, httpEndpoint string) {
 		oldmask, _ = util.Umask(0077)
 	}
 
-	klog.Infof("Starting Registration Server at: %s\n", socketPath)
+	klog.InfoS("Starting Registration Server at: %s\n", socketPath)
 	lis, err := net.Listen("unix", socketPath)
 	if err != nil {
-		klog.Errorf("failed to listen on socket: %s with error: %+v", socketPath, err)
+		klog.Error("failed to listen on socket: %s with error: %+v", socketPath, err)
 		os.Exit(1)
 	}
 	if runtime.GOOS == "linux" {
 		util.Umask(oldmask)
 	}
-	klog.Infof("Registration Server started at: %s\n", socketPath)
+	klog.InfoS("Registration Server started at: %s\n", socketPath)
 	grpcServer := grpc.NewServer()
 
 	// Before registering node-driver-registrar with the kubelet ensure that the lockfile doesn't exist
@@ -73,7 +73,7 @@ func nodeRegister(csiDriverName, httpEndpoint string) {
 	go removeRegSocket(csiDriverName)
 	// Starts service
 	if err := grpcServer.Serve(lis); err != nil {
-		klog.Errorf("Registration Server stopped serving: %v", err)
+		klog.Error("Registration Server stopped serving: %v", err)
 		os.Exit(1)
 	}
 
@@ -89,10 +89,10 @@ func buildSocketPath(csiDriverName string) string {
 
 func httpServer(socketPath string, httpEndpoint string) {
 	if httpEndpoint == "" {
-		klog.Infof("Skipping HTTP server because endpoint is set to: %q", httpEndpoint)
+		klog.InfoS("Skipping HTTP server because endpoint is set to: %q", httpEndpoint)
 		return
 	}
-	klog.Infof("Starting HTTP server at endpoint: %v\n", httpEndpoint)
+	klog.InfoS("Starting HTTP server at endpoint: %v\n", httpEndpoint)
 
 	// Prepare http endpoint for healthz + profiling (if enabled)
 	mux := http.NewServeMux()
@@ -101,15 +101,15 @@ func httpServer(socketPath string, httpEndpoint string) {
 		if err == nil && socketExists {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`ok`))
-			klog.V(5).Infof("health check succeeded")
+			klog.V(5).InfoS("health check succeeded")
 		} else if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
-			klog.Errorf("health check failed: %+v", err)
+			klog.Error("health check failed: %+v", err)
 		} else if !socketExists {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("registration socket does not exist"))
-			klog.Errorf("health check failed, registration socket does not exist")
+			klog.Error("health check failed, registration socket does not exist")
 		}
 	})
 
@@ -133,7 +133,7 @@ func removeRegSocket(csiDriverName string) {
 	socketPath := buildSocketPath(csiDriverName)
 	err := os.Remove(socketPath)
 	if err != nil && !os.IsNotExist(err) {
-		klog.Errorf("failed to remove socket: %s with error: %+v", socketPath, err)
+		klog.Error("failed to remove socket: %s with error: %+v", socketPath, err)
 		os.Exit(1)
 	}
 	os.Exit(0)
